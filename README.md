@@ -1,6 +1,6 @@
-# El Gaucho Hanoi - FnB Management (Hexagonal Architecture)
+# El FnB Restaurant Management (Hexagonal Architecture)
 
-This repository now includes a **Hexagonal Architecture (Ports and Adapters)** implementation for a restaurant management system sized for **80-120 seats**.
+This repository includes a **Hexagonal Architecture (Ports and Adapters)** implementation for the **El** restaurant management system sized for **80-120 seats**.
 
 ## Architecture
 
@@ -36,5 +36,7 @@ All new projects target **.NET 10** (`net10.0`).
 ```bash
 dotnet run --project src/Api/Api.csproj
 ```
+
+To open the full solution in an IDE, use `ElFnB.sln`.
 
 The sample runs a full order lifecycle and prints a basic report.

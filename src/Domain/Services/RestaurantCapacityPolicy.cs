@@ -9,7 +9,7 @@ public static class RestaurantCapacityPolicy
     {
         if (totalSeats < MinSeats || totalSeats > MaxSeats)
         {
-            throw new ArgumentOutOfRangeException(nameof(totalSeats), $"El Gaucho Hanoi capacity must be in range {MinSeats}-{MaxSeats}.");
+            throw new ArgumentOutOfRangeException(nameof(totalSeats), $"El capacity must be in range {MinSeats}-{MaxSeats}.");
         }
     }
 }
