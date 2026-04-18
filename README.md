@@ -6,11 +6,15 @@ This repository now includes a **Hexagonal Architecture (Ports and Adapters)** i
 
 ```text
 /src
-  /Domain          # Entities, value objects, domain services, business rules
-  /Application     # Use cases, DTOs, ports (interfaces)
-  /Adapters        # In-memory persistence and external adapter implementations
-  /Infrastructure  # Dependency injection and composition support
-  /Api             # Executable entrypoint that exercises operational flows
+  /Domain                 # Core domain model (entities, domain services, business rules)
+  /Application            # Core application layer (use cases + ports)
+  /Adapters
+    /Inbound              # Driving adapters (entrypoints/controllers)
+    /Outbound             # Driven adapters (repositories, gateways, external integrations)
+      /Persistence
+      /Integrations
+  /Infrastructure         # Composition root / dependency injection wiring
+  /Api                    # Current executable inbound adapter
 ```
 
 ## Supported restaurant flows
