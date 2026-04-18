@@ -14,7 +14,7 @@ This repository includes a **Hexagonal Architecture (Ports and Adapters)** imple
       /Persistence
       /Integrations
   /Infrastructure         # Composition root / dependency injection wiring
-  /Api                    # Current executable inbound adapter
+  /Web                    # Current executable inbound adapter
 ```
 
 ## Supported restaurant flows
@@ -31,12 +31,51 @@ This repository includes a **Hexagonal Architecture (Ports and Adapters)** imple
 
 All new projects target **.NET 10** (`net10.0`).
 
-## Run sample flow
+## Run web app
 
 ```bash
-dotnet run --project src/Api/Api.csproj
+dotnet run --project src/Web/Web.csproj
 ```
 
 To open the full solution in an IDE, use `ElFnB.sln`.
 
-The sample runs a full order lifecycle and prints a basic report.
+The `Web` project now hosts a server-rendered web dashboard for:
+
+- opening a table ticket
+- adding and removing order items
+- sending orders to kitchen
+- processing payment
+- closing orders and reviewing the daily sales snapshot
+
+When the app starts, open the local URL printed by ASP.NET Core in the terminal.
+
+## Docker
+
+Build the image from the repository root:
+
+```bash
+docker build -t elfnb-web .
+```
+
+Run the web app on port `8080`:
+
+```bash
+docker run --rm -p 8080:8080 elfnb-web
+```
+
+Then open `http://localhost:8080`.
+
+Useful variants:
+
+```bash
+# run in detached mode
+docker run -d --name elfnb-web -p 8080:8080 elfnb-web
+
+# stop the detached container
+docker stop elfnb-web
+```
+
+Notes:
+
+- the container starts the `src/Web` ASP.NET Core host
+- the app uses in-memory repositories, so container restarts reset all orders, payments, and reports

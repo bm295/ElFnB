@@ -23,6 +23,12 @@ public sealed class CreateOrderForTableUseCase
             throw new InvalidOperationException($"Table {tableNumber} does not exist.");
         }
 
+        var activeOrders = await _orders.GetActiveAsync(cancellationToken);
+        if (activeOrders.Any(x => x.TableNumber == tableNumber))
+        {
+            throw new InvalidOperationException($"Table {tableNumber} already has an active order.");
+        }
+
         var order = new Order(Guid.NewGuid(), tableNumber, DateTimeOffset.UtcNow);
         await _orders.AddAsync(order, cancellationToken);
 

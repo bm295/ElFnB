@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ProcessPaymentUseCase>();
         services.AddTransient<CloseOrderUseCase>();
         services.AddTransient<GetDailySalesReportUseCase>();
+        services.AddTransient<GetOperationsDashboardUseCase>();
 
         return services;
     }

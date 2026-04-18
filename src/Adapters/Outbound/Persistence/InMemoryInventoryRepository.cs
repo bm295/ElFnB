@@ -12,6 +12,16 @@ public sealed class InMemoryInventoryRepository : IInventoryRepository
         ["WATER"] = new InventoryItem("WATER", "Sparkling Water", 500)
     };
 
+    public Task<IReadOnlyCollection<InventoryItem>> GetAllAsync(CancellationToken cancellationToken)
+    {
+        var result = _items.Values
+            .OrderBy(x => x.Name)
+            .ToList()
+            .AsReadOnly();
+
+        return Task.FromResult<IReadOnlyCollection<InventoryItem>>(result);
+    }
+
     public Task<InventoryItem?> GetBySkuAsync(string sku, CancellationToken cancellationToken)
     {
         _items.TryGetValue(sku, out var item);

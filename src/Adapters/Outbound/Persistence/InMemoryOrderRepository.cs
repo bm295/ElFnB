@@ -19,6 +19,18 @@ public sealed class InMemoryOrderRepository : IOrderRepository
         return Task.FromResult(order);
     }
 
+    public Task<IReadOnlyCollection<Order>> GetActiveAsync(CancellationToken cancellationToken)
+    {
+        var result = _orders.Values
+            .Where(x => x.Status != OrderStatus.Closed)
+            .OrderBy(x => x.TableNumber)
+            .ThenBy(x => x.CreatedAtUtc)
+            .ToList()
+            .AsReadOnly();
+
+        return Task.FromResult<IReadOnlyCollection<Order>>(result);
+    }
+
     public Task UpdateAsync(Order order, CancellationToken cancellationToken)
     {
         _orders[order.Id] = order;

@@ -1,0 +1,302 @@
+@model OperationsDashboardViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Service Board";
+    var dashboard = Model.Dashboard;
+    var activeOrders = dashboard.ActiveOrders;
+    var occupiedTables = dashboard.Tables.Count(x => x.HasActiveOrder);
+    var availableTables = dashboard.Tables.Count - occupiedTables;
+    var openRevenue = activeOrders.Sum(x => x.TotalAmount);
+    var draftOrders = activeOrders.Count(x => x.Status == OrderStatus.Draft);
+    var kitchenOrders = activeOrders.Count(x => x.Status == OrderStatus.SentToKitchen);
+    var paidOrders = activeOrders.Count(x => x.Status == OrderStatus.Paid);
+    var flashMessage = TempData["FlashMessage"] as string;
+    var flashTone = TempData["FlashTone"] as string ?? "success";
+}
+
+<header class="hero panel">
+    <div class="hero-copy">
+        <p class="eyebrow">EL FNB SERVICE BOARD</p>
+        <h1>Dining room command for live tables, kitchen handoff, and closeout.</h1>
+        <p class="hero-text">
+            Run the full service cycle from one screen: open a table, build the ticket, fire to kitchen, collect payment,
+            and review today's revenue pulse.
+        </p>
+    </div>
+
+    <div class="hero-stats">
+        <article class="stat-card accent">
+            <span class="stat-label">Active Tabs</span>
+            <strong>@activeOrders.Count</strong>
+            <span class="stat-note">@draftOrders draft, @kitchenOrders in kitchen, @paidOrders ready to close</span>
+        </article>
+        <article class="stat-card">
+            <span class="stat-label">Floor Availability</span>
+            <strong>@availableTables / @dashboard.Tables.Count</strong>
+            <span class="stat-note">@occupiedTables tables occupied right now</span>
+        </article>
+        <article class="stat-card">
+            <span class="stat-label">Open Revenue</span>
+            <strong>@openRevenue.ToString("N0")</strong>
+            <span class="stat-note">VND across active orders</span>
+        </article>
+        <article class="stat-card olive">
+            <span class="stat-label">Daily Sales</span>
+            <strong>@dashboard.DailySales.GrossRevenue.ToString("N0")</strong>
+            <span class="stat-note">@dashboard.DailySales.ClosedOrders closed orders on @dashboard.Day.ToString("dd MMM yyyy")</span>
+        </article>
+    </div>
+</header>
+
+@if (!string.IsNullOrWhiteSpace(flashMessage))
+{
+    <div class="flash-banner @flashTone">
+        @flashMessage
+    </div>
+}
+
+<div class="board-layout">
+    <section class="panel floor-panel">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Floor</p>
+                <h2>Table map</h2>
+            </div>
+            <p>Open a ticket only on free tables. Occupied tables link directly to their active ticket.</p>
+        </div>
+
+        <div class="table-grid">
+            @foreach (var table in dashboard.Tables)
+            {
+                var tableClass = table.HasActiveOrder ? "table-card occupied" : "table-card free";
+
+                <article class="@tableClass">
+                    <div class="table-meta">
+                        <span class="table-number">Table @table.Number</span>
+                        <span class="capacity">@table.Seats seats</span>
+                    </div>
+
+                    @if (table.HasActiveOrder && table.ActiveOrderId.HasValue)
+                    {
+                        <span class="status-pill busy">@table.ActiveOrderStatus</span>
+                        <p class="table-summary">
+                            Ticket live with @table.ActiveOrderTotal?.ToString("N0") VND on the tab.
+                        </p>
+                        <a class="inline-link" href="#order-@table.ActiveOrderId.Value">Jump to order</a>
+                    }
+                    else
+                    {
+                        <span class="status-pill free">Available</span>
+                        <p class="table-summary">Ready for the next guest party.</p>
+                        <form asp-action="CreateOrder" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="tableNumber" value="@table.Number" />
+                            <button class="action-button" type="submit">Open ticket</button>
+                        </form>
+                    }
+                </article>
+            }
+        </div>
+    </section>
+
+    <aside class="panel menu-panel">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Menu + Stock</p>
+                <h2>Service catalog</h2>
+            </div>
+            <p>Items available to add while an order is still in draft.</p>
+        </div>
+
+        <div class="menu-list">
+            @foreach (var item in dashboard.MenuItems)
+            {
+                var stockClass = item.QuantityOnHand switch
+                {
+                    <= 25 => "low",
+                    <= 100 => "medium",
+                    _ => "healthy"
+                };
+
+                <article class="menu-item">
+                    <div>
+                        <h3>@item.Name</h3>
+                        <p>@item.Sku</p>
+                    </div>
+                    <div class="menu-item-meta">
+                        <strong>@item.SuggestedPrice.ToString("N0") VND</strong>
+                        <span class="stock-tag @stockClass">@item.QuantityOnHand in stock</span>
+                    </div>
+                </article>
+            }
+        </div>
+    </aside>
+</div>
+
+<section class="panel orders-panel">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Orders</p>
+            <h2>Active tickets</h2>
+        </div>
+        <p>Draft orders can be edited. Once sent, they can only move forward through payment and closeout.</p>
+    </div>
+
+    @if (activeOrders.Count == 0)
+    {
+        <div class="empty-state">
+            <h3>No active orders</h3>
+            <p>Open a table from the floor map to start service.</p>
+        </div>
+    }
+    else
+    {
+        <div class="orders-grid">
+            @foreach (var order in activeOrders)
+            {
+                var badgeClass = order.Status switch
+                {
+                    OrderStatus.Draft => "draft",
+                    OrderStatus.SentToKitchen => "kitchen",
+                    OrderStatus.Paid => "paid",
+                    _ => "draft"
+                };
+
+                <article class="order-card" id="order-@order.Id">
+                    <div class="order-header">
+                        <div>
+                            <p class="order-label">Table @order.TableNumber</p>
+                            <h3>Ticket @order.Id.ToString("N")[..8].ToUpperInvariant()</h3>
+                        </div>
+                        <div class="order-header-meta">
+                            <span class="status-pill @badgeClass">@order.Status</span>
+                            <span>@order.CreatedAtUtc.ToLocalTime().ToString("dd MMM yyyy HH:mm")</span>
+                        </div>
+                    </div>
+
+                    <div class="order-total">
+                        <span>Total</span>
+                        <strong>@order.TotalAmount.ToString("N0") VND</strong>
+                    </div>
+
+                    <div class="ticket-lines">
+                        @if (order.Items.Count == 0)
+                        {
+                            <p class="empty-lines">No items added yet.</p>
+                        }
+                        else
+                        {
+                            @foreach (var line in order.Items)
+                            {
+                                <div class="ticket-line">
+                                    <div>
+                                        <strong>@line.Name</strong>
+                                        <p>@line.Sku - @line.UnitPrice.ToString("N0") VND each</p>
+                                    </div>
+                                    <div class="ticket-line-meta">
+                                        <span>@line.Quantity x</span>
+                                        <strong>@line.LineTotal.ToString("N0")</strong>
+                                    </div>
+                                </div>
+
+                                @if (order.Status == OrderStatus.Draft)
+                                {
+                                    <form asp-action="RemoveItem" method="post" class="inline-form compact-form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="orderId" value="@order.Id" />
+                                        <input type="hidden" name="sku" value="@line.Sku" />
+                                        <label>
+                                            Remove
+                                            <input name="quantity" type="number" min="1" max="@line.Quantity" value="1" />
+                                        </label>
+                                        <button class="ghost-button" type="submit">Update</button>
+                                    </form>
+                                }
+                            }
+                        }
+                    </div>
+
+                    @if (order.Status == OrderStatus.Draft)
+                    {
+                        <div class="order-actions-grid">
+                            <form asp-action="AddItem" method="post" class="service-form js-menu-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="orderId" value="@order.Id" />
+                                <input type="hidden" name="name" value="" />
+                                <input type="hidden" name="unitPrice" value="" />
+
+                                <label>
+                                    Menu item
+                                    <select name="sku" class="js-menu-picker">
+                                        @foreach (var item in dashboard.MenuItems)
+                                        {
+                                            <option
+                                                value="@item.Sku"
+                                                data-name="@item.Name"
+                                                data-price="@item.SuggestedPrice.ToString(CultureInfo.InvariantCulture)">
+                                                @item.Name (@item.Sku) - @item.SuggestedPrice.ToString("N0") VND
+                                            </option>
+                                        }
+                                    </select>
+                                </label>
+
+                                <label>
+                                    Quantity
+                                    <input name="quantity" type="number" min="1" value="1" />
+                                </label>
+
+                                <button class="action-button" type="submit">Add item</button>
+                            </form>
+
+                            <form asp-action="SendToKitchen" method="post" class="service-form action-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="orderId" value="@order.Id" />
+                                <p>Ready for the kitchen once the ticket is complete.</p>
+                                <button class="action-button contrast" type="submit">Send to kitchen</button>
+                            </form>
+                        </div>
+                    }
+                    else if (order.Status == OrderStatus.SentToKitchen)
+                    {
+                        <form asp-action="Pay" method="post" class="service-form payment-form">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="orderId" value="@order.Id" />
+
+                            <label>
+                                Payment method
+                                <select name="method">
+                                    @foreach (var method in Model.PaymentMethods)
+                                    {
+                                        <option value="@method">@method</option>
+                                    }
+                                </select>
+                            </label>
+
+                            <button class="action-button olive" type="submit">Charge order</button>
+                        </form>
+                    }
+                    else if (order.Status == OrderStatus.Paid)
+                    {
+                        <div class="receipt-callout">
+                            <div>
+                                <span class="receipt-label">Payment captured</span>
+                                <strong>@order.Payment?.Method</strong>
+                            </div>
+                            <div>
+                                <span class="receipt-label">Reference</span>
+                                <strong>@order.Payment?.TransactionId</strong>
+                            </div>
+                        </div>
+
+                        <form asp-action="Close" method="post" class="service-form action-form">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="orderId" value="@order.Id" />
+                            <p>Payment is approved. Close the ticket to move it into the daily report.</p>
+                            <button class="action-button dark" type="submit">Close order</button>
+                        </form>
+                    }
+                </article>
+            }
+        </div>
+    }
+</section>
